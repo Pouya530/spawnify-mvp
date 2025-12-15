@@ -1,17 +1,17 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/api/admin/export-logs/route": "app/api/admin/export-logs/route.js",
   "/page": "app/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/api/admin/export-logs/route": "app/api/admin/export-logs/route.js",
   "/(auth)/signup/page": "app/(auth)/signup/page.js",
-  "/admin/grow-logs/page": "app/admin/grow-logs/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/dashboard/grow-logs/new/page": "app/dashboard/grow-logs/new/page.js",
+  "/dashboard/grow-logs/page": "app/dashboard/grow-logs/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/dashboard/grow-logs/[id]/edit/page": "app/dashboard/grow-logs/[id]/edit/page.js",
+  "/dashboard/settings/page": "app/dashboard/settings/page.js",
   "/admin/login/page": "app/admin/login/page.js",
   "/admin/users/page": "app/admin/users/page.js",
-  "/dashboard/grow-logs/new/page": "app/dashboard/grow-logs/new/page.js",
+  "/admin/grow-logs/page": "app/admin/grow-logs/page.js",
   "/dashboard/grow-logs/[id]/page": "app/dashboard/grow-logs/[id]/page.js",
-  "/dashboard/grow-logs/page": "app/dashboard/grow-logs/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/dashboard/grow-logs/[id]/edit/page": "app/dashboard/grow-logs/[id]/edit/page.js",
-  "/dashboard/settings/page": "app/dashboard/settings/page.js"
+  "/admin/dashboard/page": "app/admin/dashboard/page.js"
 }
