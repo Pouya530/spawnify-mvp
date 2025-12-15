@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST='{"components/admin/ExportDataButton.tsx -> @/lib/supabase/client":{"id":10970,"files":["static/chunks/452-231ee92b09d09656.js","static/chunks/970.5c4dcb657c045391.js"]}}';
