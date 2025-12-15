@@ -47,7 +47,7 @@ export default async function EditGrowLogPage({ params }: PageProps) {
         </p>
       </div>
       
-      <GrowLogForm mode="edit" initialData={initialData} />
+      <GrowLogForm mode="edit" initialData={logTyped} />
     </div>
   )
 }
