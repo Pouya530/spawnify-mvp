@@ -112,7 +112,7 @@ export function GamificationStats({ profile, logs = [] }: GamificationStatsProps
         {!nextTierPoints && (
           <div className="p-4 bg-primary-50 border border-primary-200 rounded-xl">
             <p className="text-sm text-primary-900 font-medium">
-              🎉 Congratulations! You've reached the highest tier!
+              🎉 Congratulations! You&apos;ve reached the highest tier!
             </p>
           </div>
         )}
