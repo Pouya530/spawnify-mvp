@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, Controller, useFieldArray } from 'react-hook-form'
 import { format } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
@@ -22,8 +22,8 @@ import {
   GROWING_METHODS,
   TEK_METHODS
 } from '@/lib/constants/growingOptions'
-import { GrowLogFormData } from '@/lib/types/growLog'
-import { Calendar, Thermometer, Droplets, Scale, Sun, FlaskConical } from 'lucide-react'
+import { GrowLogFormData, SubstrateEntry } from '@/lib/types/growLog'
+import { Calendar, Thermometer, Droplets, Scale, Sun, FlaskConical, Plus, X } from 'lucide-react'
 import { Database } from '@/lib/types/database'
 
 type GrowLog = Database['public']['Tables']['grow_logs']['Row']
@@ -42,12 +42,36 @@ export function GrowLogForm({ mode, initialData }: GrowLogFormProps) {
   const [existingPhotos, setExistingPhotos] = useState<string[]>(initialData?.photos || [])
   const [error, setError] = useState<string>('')
   
+  // Parse substrates from initialData if editing
+  const parseSubstrates = (): SubstrateEntry[] => {
+    if (initialData?.substrate_ratio) {
+      try {
+        const parsed = JSON.parse(initialData.substrate_ratio)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed
+        }
+      } catch (e) {
+        // If not JSON, treat as old format - create single entry
+        if (initialData.substrate) {
+          return [{ substrate: initialData.substrate, percentage: 100 }]
+        }
+      }
+    }
+    // Default: single substrate entry
+    return initialData?.substrate 
+      ? [{ substrate: initialData.substrate, percentage: 100 }]
+      : [{ substrate: '', percentage: 0 }]
+  }
+  
+  const initialSubstrates = parseSubstrates()
+  
   // Transform GrowLog to GrowLogFormData if initialData is provided
   const formDefaults: GrowLogFormData = initialData ? {
     growth_stage: initialData.growth_stage,
     log_date: format(new Date(initialData.log_date), 'yyyy-MM-dd'),
     strain: initialData.strain,
     substrate: initialData.substrate,
+    substrates: initialSubstrates,
     substrate_ratio: initialData.substrate_ratio || '',
     inoculation_method: initialData.inoculation_method,
     inoculation_details: initialData.inoculation_details || '',
@@ -66,6 +90,7 @@ export function GrowLogForm({ mode, initialData }: GrowLogFormProps) {
     log_date: format(new Date(), 'yyyy-MM-dd'),
     strain: '',
     substrate: '',
+    substrates: [{ substrate: '', percentage: 0 }],
     inoculation_method: '',
     growing_method: ''
   }
@@ -81,8 +106,21 @@ export function GrowLogForm({ mode, initialData }: GrowLogFormProps) {
     defaultValues: formDefaults
   })
   
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'substrates'
+  })
+  
   // Watch form values for completeness calculation
   const formValues = watch()
+  const substrates = watch('substrates')
+  
+  // Update main substrate field when substrates change
+  useEffect(() => {
+    if (substrates && substrates.length > 0 && substrates[0].substrate) {
+      setValue('substrate', substrates[0].substrate)
+    }
+  }, [substrates, setValue])
   
   useEffect(() => {
     const allPhotos = mode === 'edit' 
@@ -129,19 +167,34 @@ export function GrowLogForm({ mode, initialData }: GrowLogFormProps) {
         photos: allPhotoUrls
       })
       
+      // Prepare substrates data
+      const validSubstrates = (data.substrates || []).filter(
+        s => s.substrate && s.percentage > 0
+      )
+      
+      // Store substrates as JSON in substrate_ratio
+      const substrateRatioJson = validSubstrates.length > 0
+        ? JSON.stringify(validSubstrates)
+        : null
+      
+      // Primary substrate (first one for backward compatibility)
+      const primarySubstrate = validSubstrates.length > 0
+        ? validSubstrates[0].substrate
+        : data.substrate || ''
+      
       // Prepare data for insertion/update
       const logData: any = {
         growth_stage: data.growth_stage,
         log_date: data.log_date,
         strain: data.strain,
-        substrate: data.substrate,
+        substrate: primarySubstrate,
         inoculation_method: data.inoculation_method,
         growing_method: data.growing_method,
         data_completeness_score: completenessScore
       }
       
       // Add optional fields
-      if (data.substrate_ratio) logData.substrate_ratio = data.substrate_ratio
+      if (substrateRatioJson) logData.substrate_ratio = substrateRatioJson
       else logData.substrate_ratio = null
       
       if (data.inoculation_details) logData.inoculation_details = data.inoculation_details
@@ -327,23 +380,111 @@ export function GrowLogForm({ mode, initialData }: GrowLogFormProps) {
               />
             )}
           />
+        </div>
+        
+        {/* Substrates Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-neutral-900">Substrates</h3>
+            {(() => {
+              const totalPercentage = substrates?.reduce((sum, s) => sum + (s.percentage || 0), 0) || 0
+              return totalPercentage !== 100 && substrates && substrates.length > 0 ? (
+                <span className="text-sm text-amber-600">
+                  Total: {totalPercentage}% (should equal 100%)
+                </span>
+              ) : null
+            })()}
+          </div>
           
-          <Controller
-            name="substrate"
-            control={control}
-            rules={{ required: 'Substrate is required' }}
-            render={({ field }) => (
-              <Select
-                label="Substrate"
-                options={SUBSTRATES.map(s => ({ value: s, label: s }))}
-                required
-                error={errors.substrate?.message}
-                value={field.value || ''}
-                onChange={(value) => field.onChange(value)}
+          {fields.map((field, index) => (
+            <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_120px_auto] gap-4 items-end">
+              <Controller
+                name={`substrates.${index}.substrate`}
+                control={control}
+                rules={{ 
+                  required: index === 0 ? 'At least one substrate is required' : false 
+                }}
+                render={({ field: substrateField }) => (
+                  <Select
+                    label={index === 0 ? 'Substrate' : ''}
+                    options={SUBSTRATES.map(s => ({ value: s, label: s }))}
+                    required={index === 0}
+                    error={errors.substrates?.[index]?.substrate?.message}
+                    value={substrateField.value || ''}
+                    onChange={(value) => substrateField.onChange(value)}
+                  />
+                )}
               />
-            )}
-          />
+              
+              <Controller
+                name={`substrates.${index}.percentage`}
+                control={control}
+                rules={{ 
+                  required: index === 0 ? 'Percentage is required' : false,
+                  min: { value: 0, message: 'Must be 0 or greater' },
+                  max: { value: 100, message: 'Cannot exceed 100%' }
+                }}
+                render={({ field: percentageField }) => (
+                  <Input
+                    type="number"
+                    label={index === 0 ? 'Percentage (%)' : ''}
+                    placeholder="0-100"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    required={index === 0}
+                    error={errors.substrates?.[index]?.percentage?.message}
+                    {...percentageField}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0
+                      percentageField.onChange(value)
+                    }}
+                  />
+                )}
+              />
+              
+              <div className="flex gap-2">
+                {fields.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="small"
+                    onClick={() => remove(index)}
+                    className="text-red-600 hover:bg-red-50"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+                {index === fields.length - 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="small"
+                    onClick={() => append({ substrate: '', percentage: 0 })}
+                    className="text-primary-600 hover:bg-primary-50"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
           
+          {fields.length === 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => append({ substrate: '', percentage: 0 })}
+              className="w-full"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Substrate
+            </Button>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Controller
             name="inoculation_method"
             control={control}
@@ -385,12 +526,6 @@ export function GrowLogForm({ mode, initialData }: GrowLogFormProps) {
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Input
-            label="Substrate Ratio"
-            placeholder="e.g., 5:1:1 (coco:verm:gypsum)"
-            {...register('substrate_ratio')}
-          />
-          
           <Input
             label="Inoculation Details"
             placeholder="e.g., 2cc per jar, 10% spawn rate"

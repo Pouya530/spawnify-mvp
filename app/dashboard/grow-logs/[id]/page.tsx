@@ -12,6 +12,7 @@ import { GrowthStageChart } from '@/components/grow-logs/GrowthStageChart'
 import { DeleteLogButton } from '@/components/grow-logs/DeleteLogButton'
 import Image from 'next/image'
 import { Database } from '@/lib/types/database'
+import { SubstrateEntry } from '@/lib/types/growLog'
 
 type GrowLog = Database['public']['Tables']['grow_logs']['Row']
 
@@ -105,7 +106,7 @@ export default async function ViewGrowLogPage({ params }: PageProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <InfoField label="Growth Stage" value={logTyped.growth_stage} badge />
           <InfoField label="Strain" value={logTyped.strain} />
-          <InfoField label="Substrate" value={logTyped.substrate} />
+          <SubstrateDisplay substrate={logTyped.substrate} substrateRatio={logTyped.substrate_ratio} />
           <InfoField label="Growing Method" value={logTyped.growing_method} />
           <InfoField label="Inoculation Method" value={logTyped.inoculation_method} />
           {logTyped.tek_method && <InfoField label="TEK Method" value={logTyped.tek_method} />}
@@ -170,13 +171,10 @@ export default async function ViewGrowLogPage({ params }: PageProps) {
       )}
 
       {/* Additional Details */}
-      {(logTyped.substrate_ratio || logTyped.inoculation_details) && (
+      {logTyped.inoculation_details && (
         <Card className="p-8">
           <h2 className="text-xl font-bold text-neutral-900 mb-6">Additional Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {logTyped.substrate_ratio && (
-              <InfoField label="Substrate Ratio" value={logTyped.substrate_ratio} />
-            )}
             {logTyped.inoculation_details && (
               <InfoField label="Inoculation Details" value={logTyped.inoculation_details} />
             )}
@@ -263,6 +261,63 @@ function InfoField({
       ) : (
         <p className="text-base font-medium text-neutral-900">{value}</p>
       )}
+    </div>
+  )
+}
+
+function SubstrateDisplay({ 
+  substrate, 
+  substrateRatio 
+}: { 
+  substrate: string | null
+  substrateRatio: string | null
+}) {
+  let substrates: SubstrateEntry[] = []
+  
+  if (substrateRatio) {
+    try {
+      const parsed = JSON.parse(substrateRatio)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        substrates = parsed
+      }
+    } catch (e) {
+      // If not JSON, display as plain text
+      return (
+        <div>
+          <p className="text-sm text-neutral-600 mb-1">Substrate</p>
+          <p className="text-base font-medium text-neutral-900">{substrate || 'N/A'}</p>
+          {substrateRatio && (
+            <p className="text-sm text-neutral-600 mt-1">{substrateRatio}</p>
+          )}
+        </div>
+      )
+    }
+  }
+  
+  if (substrates.length === 0 && substrate) {
+    substrates = [{ substrate, percentage: 100 }]
+  }
+  
+  if (substrates.length === 0) {
+    return (
+      <div>
+        <p className="text-sm text-neutral-600 mb-1">Substrate</p>
+        <p className="text-base font-medium text-neutral-900">N/A</p>
+      </div>
+    )
+  }
+  
+  return (
+    <div>
+      <p className="text-sm text-neutral-600 mb-2">Substrate{substrates.length > 1 ? 's' : ''}</p>
+      <div className="space-y-1">
+        {substrates.map((s, index) => (
+          <div key={index} className="flex items-center justify-between">
+            <span className="text-base font-medium text-neutral-900">{s.substrate}</span>
+            <span className="text-sm text-neutral-600 ml-2">{s.percentage}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

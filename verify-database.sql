@@ -42,3 +42,5 @@ SELECT
   (SELECT COUNT(*) FROM grow_logs) as log_count,
   (SELECT COUNT(*) FROM admin_users) as admin_count;
 
+
+
