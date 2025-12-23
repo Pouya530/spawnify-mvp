@@ -11,7 +11,8 @@
     "check-db": "tsx check-db-tables.ts",
     "verify-setup": "tsx scripts/verify-setup.ts",
     "deploy-chat": "./scripts/deploy-ai-chat.sh",
-    "test-chat": "./scripts/test-ai-chat.sh"
+    "test-chat": "./scripts/test-ai-chat.sh",
+    "update-vercel-env": "./scripts/update-vercel-env.sh"
   },
   "keywords": [
     "mushroom",
