@@ -153,9 +153,9 @@ export async function POST(req: NextRequest) {
 
     // Call Claude API
     const conversationHistory = messages.length > 0 ? messages : [{ role: 'user' as const, content: message }]
-    console.log(`[${requestId}] 🚀 About to call Anthropic API`, { model: 'claude-3-5-sonnet-20241022', historyLength: conversationHistory.length, systemPromptLength: systemPrompt.length })
+    console.log(`[${requestId}] 🚀 About to call Anthropic API`, { model: 'claude-3-5-sonnet-20240620', historyLength: conversationHistory.length, systemPromptLength: systemPrompt.length })
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022', // Claude 3.5 Sonnet
+      model: 'claude-3-5-sonnet-20240620', // Claude 3.5 Sonnet (standard model)
       max_tokens: 2048,
       system: systemPrompt,
       messages: conversationHistory
