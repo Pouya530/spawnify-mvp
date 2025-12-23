@@ -218,9 +218,32 @@ export async function POST(req: NextRequest) {
     console.error(`[${requestId}] Chat API error:`, error)
     
     // Handle Anthropic API errors
-    if (error.status === 401) {
+    if (error.status === 401 || error.type === 'authentication_error') {
+      console.error(`[${requestId}] ❌ API Key Authentication Failed:`, {
+        status: error.status,
+        type: error.type,
+        message: error.message,
+        apiKeyPrefix: apiKey?.substring(0, 15),
+        apiKeyLength: apiKey?.length
+      })
       return NextResponse.json(
-        { error: 'Invalid API key. Please check ANTHROPIC_API_KEY environment variable.' },
+        { 
+          error: 'Invalid API key. Please check ANTHROPIC_API_KEY environment variable in Vercel.',
+          code: 'INVALID_API_KEY',
+          debug: {
+            hasKey: !!apiKey,
+            keyPrefix: apiKey?.substring(0, 15) || 'MISSING',
+            keyLength: apiKey?.length || 0,
+            nodeEnv: process.env.NODE_ENV
+          },
+          instructions: {
+            step1: 'Go to Vercel Dashboard → Settings → Environment Variables',
+            step2: 'Find ANTHROPIC_API_KEY',
+            step3: 'Update with your new key from .env.local',
+            step4: 'Select ALL environments (Production, Preview, Development)',
+            step5: 'Save and redeploy'
+          }
+        },
         { status: 500 }
       )
     }
