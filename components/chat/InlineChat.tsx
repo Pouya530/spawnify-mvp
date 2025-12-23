@@ -105,7 +105,24 @@ export function InlineChat({ conversationId: initialConversationId = null }: Inl
       }
     } catch (err: any) {
       console.error('Error sending message:', err)
-      setError(err.message || 'Failed to send message. Please try again.')
+      
+      // Handle specific error types
+      let errorMessage = 'Failed to send message. Please try again.'
+      if (err.message) {
+        errorMessage = err.message
+      } else if (typeof err === 'string') {
+        errorMessage = err
+      }
+      
+      // Check for API key missing error
+      const errorData = err.response ? await err.response.json().catch(() => null) : null
+      if (errorData?.code === 'API_KEY_MISSING') {
+        errorMessage = 'AI service is not configured. Please contact support.'
+      } else if (errorData?.code === 'TABLE_NOT_FOUND') {
+        errorMessage = 'Database setup required. Please run chat-schema.sql in Supabase.'
+      }
+      
+      setError(errorMessage)
       // Remove optimistic message on error
       setMessages(prev => prev.filter(m => m.id !== userMessage.id))
     } finally {
