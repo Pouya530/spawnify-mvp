@@ -5,11 +5,12 @@ import { getUserGrowLogs, buildGrowLogsContext, buildSystemPrompt } from '@/lib/
 
 export async function POST(req: NextRequest) {
   const requestId = Date.now()
+  // Get API key at function scope so it's available in catch block
+  const apiKey = process.env.ANTHROPIC_API_KEY
   try {
     console.log(`[${requestId}] === CHAT API CALLED ===`, { timestamp: new Date().toISOString() })
     
     // Check if API key is configured (check dynamically)
-    const apiKey = process.env.ANTHROPIC_API_KEY
     console.log(`[${requestId}] 🔑 API Key exists:`, !!apiKey, 'Prefix:', apiKey?.substring(0, 15))
     
     if (!apiKey) {
