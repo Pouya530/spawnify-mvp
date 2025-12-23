@@ -2,7 +2,20 @@
 
 # Script to add ANTHROPIC_API_KEY to Vercel via CLI
 
-API_KEY="${ANTHROPIC_API_KEY:-your-api-key-here}"
+# API_KEY should be read from .env.local or provided as argument
+# Usage: ./add-api-key.sh [API_KEY]
+# If no argument provided, reads from .env.local
+if [ -z "$1" ]; then
+  if [ -f .env.local ]; then
+    API_KEY=$(cat .env.local | grep ANTHROPIC_API_KEY | cut -d= -f2)
+  else
+    echo "❌ Error: No API key provided and .env.local not found"
+    echo "Usage: ./add-api-key.sh [API_KEY]"
+    exit 1
+  fi
+else
+  API_KEY="$1"
+fi
 
 echo "🔧 Adding ANTHROPIC_API_KEY to Vercel..."
 echo ""

@@ -8,7 +8,7 @@ The AI Grow Assistant is fully configured and ready to use!
 
 ### ✅ Local Development
 - [x] API key added to `.env.local`
-- [x] API key: `sk-ant-api03-Ld888sSxSAm5A-...` (configured)
+- [x] API key: Configured in `.env.local` (check with `./verify-api-key.sh`)
 - [x] Build successful (no TypeScript errors)
 - [x] All components properly set up
 

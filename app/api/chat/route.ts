@@ -156,8 +156,8 @@ export async function POST(req: NextRequest) {
 
     // Call Claude API
     const conversationHistory = messages.length > 0 ? messages : [{ role: 'user' as const, content: message }]
-    // Using claude-3-sonnet-20240229 (verified working model)
-    const modelName = 'claude-3-sonnet-20240229'
+    // Using claude-3-haiku-20240307 (verified working model with current API key)
+    const modelName = 'claude-3-haiku-20240307'
     console.log(`[${requestId}] 🚀 About to call Anthropic API`, { 
       model: modelName, 
       historyLength: conversationHistory.length, 
