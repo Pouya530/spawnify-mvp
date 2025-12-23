@@ -29,17 +29,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Initialize Anthropic client dynamically
+    // Note: The SDK automatically adds the anthropic-version header
     let anthropic: Anthropic
     try {
       anthropic = new Anthropic({
         apiKey: apiKey
       })
+      console.log(`[${requestId}] ✅ Anthropic client initialized with API key prefix:`, apiKey?.substring(0, 15))
     } catch (error) {
-      console.error('Failed to initialize Anthropic client:', error)
+      console.error(`[${requestId}] ❌ Failed to initialize Anthropic client:`, error)
       return NextResponse.json(
         { 
           error: 'Failed to initialize AI service.',
-          code: 'INIT_ERROR'
+          code: 'INIT_ERROR',
+          details: error instanceof Error ? error.message : 'Unknown error'
         },
         { status: 500 }
       )
@@ -153,14 +156,26 @@ export async function POST(req: NextRequest) {
 
     // Call Claude API
     const conversationHistory = messages.length > 0 ? messages : [{ role: 'user' as const, content: message }]
-    console.log(`[${requestId}] 🚀 About to call Anthropic API`, { model: 'claude-3-5-sonnet-20240620', historyLength: conversationHistory.length, systemPromptLength: systemPrompt.length })
+    console.log(`[${requestId}] 🚀 About to call Anthropic API`, { 
+      model: 'claude-3-5-sonnet-20240620', 
+      historyLength: conversationHistory.length, 
+      systemPromptLength: systemPrompt.length,
+      apiKeyPrefix: apiKey?.substring(0, 15)
+    })
+    
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20240620', // Claude 3.5 Sonnet (standard model)
       max_tokens: 2048,
       system: systemPrompt,
       messages: conversationHistory
     })
-    console.log(`[${requestId}] ✅ Anthropic response received`, { contentType: response.content[0]?.type, hasContent: !!response.content[0] })
+    
+    console.log(`[${requestId}] ✅ Anthropic response received`, { 
+      contentType: response.content[0]?.type, 
+      hasContent: !!response.content[0],
+      inputTokens: response.usage?.input_tokens,
+      outputTokens: response.usage?.output_tokens
+    })
 
     const assistantMessage = response.content[0].type === 'text' 
       ? response.content[0].text 
