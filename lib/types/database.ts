@@ -139,6 +139,55 @@ export interface Database {
           created_at?: string
         }
       }
+      chat_conversations: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      chat_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          role: 'user' | 'assistant' | 'system'
+          content: string
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          role: 'user' | 'assistant' | 'system'
+          content: string
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          role?: 'user' | 'assistant' | 'system'
+          content?: string
+          metadata?: Json
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -168,4 +217,6 @@ export interface Database {
 export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 export type GrowLog = Database['public']['Tables']['grow_logs']['Row']
 export type AdminUser = Database['public']['Tables']['admin_users']['Row']
+export type ChatConversation = Database['public']['Tables']['chat_conversations']['Row']
+export type ChatMessage = Database['public']['Tables']['chat_messages']['Row']
 

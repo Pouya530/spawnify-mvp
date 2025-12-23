@@ -49,6 +49,12 @@ export async function DashboardNav() {
               Grow Logs
             </Link>
             <Link
+              href="/dashboard/chat"
+              className="text-sm font-medium text-neutral-600 hover:text-primary-600 transition-colors"
+            >
+              AI Assistant
+            </Link>
+            <Link
               href="/dashboard/settings"
               className="text-sm font-medium text-neutral-600 hover:text-primary-600 transition-colors"
             >
