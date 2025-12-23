@@ -3,12 +3,33 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getUserGrowLogs, buildGrowLogsContext, buildSystemPrompt } from '@/lib/utils/chatContext'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-})
+// Initialize Anthropic client
+let anthropic: Anthropic | null = null
+try {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn('ANTHROPIC_API_KEY is not set')
+  } else {
+    anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    })
+  }
+} catch (error) {
+  console.error('Failed to initialize Anthropic client:', error)
+}
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if API key is configured
+    if (!anthropic || !process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json(
+        { 
+          error: 'AI service is not configured. Please set ANTHROPIC_API_KEY environment variable.',
+          code: 'API_KEY_MISSING'
+        },
+        { status: 500 }
+      )
+    }
+
     // Verify user authentication
     const supabase = createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -44,8 +65,20 @@ export async function POST(req: NextRequest) {
 
       if (convError || !newConversation) {
         console.error('Error creating conversation:', convError)
+        
+        // Check if table doesn't exist
+        if (convError?.code === '42P01' || convError?.message?.includes('does not exist')) {
+          return NextResponse.json(
+            { 
+              error: 'Database tables not set up. Please run chat-schema.sql in Supabase SQL Editor.',
+              code: 'TABLE_NOT_FOUND'
+            },
+            { status: 500 }
+          )
+        }
+        
         return NextResponse.json(
-          { error: 'Failed to create conversation' },
+          { error: convError?.message || 'Failed to create conversation' },
           { status: 500 }
         )
       }
@@ -64,6 +97,8 @@ export async function POST(req: NextRequest) {
 
     if (userMsgError) {
       console.error('Error saving user message:', userMsgError)
+      // Don't fail the request if message saving fails, but log it
+      // The AI response will still be returned
     }
 
     // Fetch user's grow logs for context
@@ -183,6 +218,14 @@ export async function GET(req: NextRequest) {
         .single()
 
       if (convError || !conversation) {
+        // Check if table doesn't exist
+        if (convError?.code === '42P01' || convError?.message?.includes('does not exist')) {
+          return NextResponse.json({
+            conversation: null,
+            messages: []
+          })
+        }
+        
         return NextResponse.json(
           { error: 'Conversation not found' },
           { status: 404 }
@@ -197,6 +240,13 @@ export async function GET(req: NextRequest) {
 
       if (messagesError) {
         console.error('Error fetching messages:', messagesError)
+        // Return empty messages array if table doesn't exist
+        if (messagesError.code === '42P01' || messagesError.message?.includes('does not exist')) {
+          return NextResponse.json({
+            conversation,
+            messages: []
+          })
+        }
       }
 
       return NextResponse.json({
@@ -214,6 +264,14 @@ export async function GET(req: NextRequest) {
 
       if (convsError) {
         console.error('Error fetching conversations:', convsError)
+        
+        // If table doesn't exist, return empty array instead of error
+        if (convsError.code === '42P01' || convsError.message?.includes('does not exist')) {
+          return NextResponse.json({
+            conversations: []
+          })
+        }
+        
         return NextResponse.json(
           { error: 'Failed to fetch conversations' },
           { status: 500 }
