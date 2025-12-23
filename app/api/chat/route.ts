@@ -189,6 +189,20 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (error.status === 404 || error.type === 'not_found_error') {
+      // Model not found error
+      if (error.error?.message?.includes('model')) {
+        return NextResponse.json(
+          { 
+            error: 'AI model not available. Please contact support.',
+            code: 'MODEL_NOT_FOUND',
+            details: error.error?.message
+          },
+          { status: 500 }
+        )
+      }
+    }
+
     if (error.status === 429) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Please try again later.' },
@@ -197,7 +211,11 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: error.message || 'An error occurred while processing your request' },
+      { 
+        error: error.message || 'An error occurred while processing your request',
+        code: error.type || 'UNKNOWN_ERROR',
+        details: error.error?.message || error.message
+      },
       { status: 500 }
     )
   }
