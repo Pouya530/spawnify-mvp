@@ -140,10 +140,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Call Claude API
-    // Try claude-3-sonnet-20240229 (most commonly available)
-    // If this fails, check your Anthropic account for available models
     const response = await anthropic.messages.create({
-      model: 'claude-3-sonnet-20240229', // Claude 3 Sonnet - standard model
+      model: 'claude-3-5-sonnet-20241022', // Claude 3.5 Sonnet
       max_tokens: 2048,
       system: systemPrompt,
       messages: messages.length > 0 ? messages : [
