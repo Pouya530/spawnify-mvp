@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
 
     // Call Claude API
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20240620', // Standard Claude 3.5 Sonnet model
+      model: 'claude-3-5-sonnet', // Claude 3.5 Sonnet (latest version)
       max_tokens: 2048,
       system: systemPrompt,
       messages: messages.length > 0 ? messages : [
