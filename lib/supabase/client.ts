@@ -22,3 +22,4 @@ export const createClient = () => {
   
   return createClientComponentClient<Database>()
 }
+

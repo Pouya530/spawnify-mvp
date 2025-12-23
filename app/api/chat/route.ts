@@ -118,10 +118,10 @@ export async function POST(req: NextRequest) {
     const messages: Array<{ role: 'user' | 'assistant'; content: string }> = []
     
     if (historyMessages) {
-      historyMessages.forEach(msg => {
+      historyMessages.forEach((msg: { role: string; content: string }) => {
         if (msg.role === 'user' || msg.role === 'assistant') {
           messages.push({
-            role: msg.role,
+            role: msg.role as 'user' | 'assistant',
             content: msg.content
           })
         }
