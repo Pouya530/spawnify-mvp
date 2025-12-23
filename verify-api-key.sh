@@ -34,7 +34,7 @@ if [ -f .env.local ]; then
       -H "content-type: application/json" \
       -H "x-api-key: $LOCAL_KEY" \
       -H "anthropic-version: 2023-06-01" \
-      -d '{"model": "claude-3-sonnet-20240229", "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]}' 2>&1)
+      -d '{"model": "claude-3-haiku-20240307", "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]}' 2>&1)
     
     if echo "$RESPONSE" | jq -e '.content' > /dev/null 2>&1; then
       echo "   ✅ API Key: WORKS! Connection successful."
