@@ -3,28 +3,39 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getUserGrowLogs, buildGrowLogsContext, buildSystemPrompt } from '@/lib/utils/chatContext'
 
-// Initialize Anthropic client
-let anthropic: Anthropic | null = null
-try {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.warn('ANTHROPIC_API_KEY is not set')
-  } else {
-    anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    })
-  }
-} catch (error) {
-  console.error('Failed to initialize Anthropic client:', error)
-}
-
 export async function POST(req: NextRequest) {
   try {
-    // Check if API key is configured
-    if (!anthropic || !process.env.ANTHROPIC_API_KEY) {
+    // Check if API key is configured (check dynamically)
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    
+    if (!apiKey) {
+      console.error('ANTHROPIC_API_KEY is not set in environment variables')
       return NextResponse.json(
         { 
           error: 'AI service is not configured. Please set ANTHROPIC_API_KEY environment variable.',
-          code: 'API_KEY_MISSING'
+          code: 'API_KEY_MISSING',
+          debug: {
+            nodeEnv: process.env.NODE_ENV,
+            hasKey: !!apiKey,
+            keyLength: apiKey?.length || 0
+          }
+        },
+        { status: 500 }
+      )
+    }
+
+    // Initialize Anthropic client dynamically
+    let anthropic: Anthropic
+    try {
+      anthropic = new Anthropic({
+        apiKey: apiKey
+      })
+    } catch (error) {
+      console.error('Failed to initialize Anthropic client:', error)
+      return NextResponse.json(
+        { 
+          error: 'Failed to initialize AI service.',
+          code: 'INIT_ERROR'
         },
         { status: 500 }
       )
