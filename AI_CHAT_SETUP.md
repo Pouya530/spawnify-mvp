@@ -58,7 +58,7 @@ ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
    npm run dev
    ```
 
-2. Visit: http://localhost:3000/dashboard/chat
+2. Visit: nhttp://localhost:3000/dashboard/chat
 
 3. You should see:
    - Chat interface with sidebar
