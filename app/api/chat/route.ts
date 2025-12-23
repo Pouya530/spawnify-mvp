@@ -7,6 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     // Check if API key is configured (check dynamically)
     const apiKey = process.env.ANTHROPIC_API_KEY
+    console.log('🔑 API Key exists:', !!apiKey, 'Prefix:', apiKey?.substring(0, 15))
     
     if (!apiKey) {
       console.error('ANTHROPIC_API_KEY is not set in environment variables')
@@ -140,6 +141,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Call Claude API
+    console.log('📞 Calling Anthropic API with model: claude-3-5-sonnet-20241022')
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022', // Claude 3.5 Sonnet
       max_tokens: 2048,
@@ -151,6 +153,7 @@ export async function POST(req: NextRequest) {
         }
       ]
     })
+    console.log('✅ Got response from Anthropic')
 
     const assistantMessage = response.content[0].type === 'text' 
       ? response.content[0].text 
@@ -180,6 +183,12 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Chat API error:', error)
+    console.log('❌ Error details:', JSON.stringify({
+      message: error.message,
+      status: error.status,
+      type: error.type,
+      name: error.name
+    }, null, 2))
     
     // Handle Anthropic API errors
     if (error.status === 401) {
