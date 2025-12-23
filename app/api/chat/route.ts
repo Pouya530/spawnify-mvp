@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
 
     // Call Claude API
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20240620', // Updated to correct model name
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 2048,
       system: systemPrompt,
       messages: messages.length > 0 ? messages : [
