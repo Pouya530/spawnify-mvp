@@ -4,10 +4,13 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserGrowLogs, buildGrowLogsContext, buildSystemPrompt } from '@/lib/utils/chatContext'
 
 export async function POST(req: NextRequest) {
+  const requestId = Date.now()
   try {
+    console.log(`[${requestId}] === CHAT API CALLED ===`, { timestamp: new Date().toISOString() })
+    
     // Check if API key is configured (check dynamically)
     const apiKey = process.env.ANTHROPIC_API_KEY
-    console.log('🔑 API Key exists:', !!apiKey, 'Prefix:', apiKey?.substring(0, 15))
+    console.log(`[${requestId}] 🔑 API Key exists:`, !!apiKey, 'Prefix:', apiKey?.substring(0, 15))
     
     if (!apiKey) {
       console.error('ANTHROPIC_API_KEY is not set in environment variables')
@@ -47,14 +50,17 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
+      console.log(`[${requestId}] ❌ Auth failed:`, { authError: authError?.message, hasUser: !!user })
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
+    console.log(`[${requestId}] ✅ User authenticated:`, user?.id)
 
     const body = await req.json()
     const { conversationId, message, isNewConversation } = body
+    console.log(`[${requestId}] 📝 Message received:`, { messageLength: message?.length, hasConversationId: !!conversationId, isNewConversation })
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -64,6 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle new conversation
+    console.log(`[${requestId}] 💾 Starting DB operations...`)
     let currentConversationId = conversationId
     if (isNewConversation || !conversationId) {
       const { data: newConversation, error: convError } = await supabase
@@ -97,6 +104,7 @@ export async function POST(req: NextRequest) {
 
       currentConversationId = newConversation.id
     }
+    console.log(`[${requestId}] ✅ Conversation ID:`, currentConversationId)
 
     // Save user message
     const { error: userMsgError } = await supabase
@@ -108,9 +116,11 @@ export async function POST(req: NextRequest) {
       })
 
     if (userMsgError) {
-      console.error('Error saving user message:', userMsgError)
+      console.error(`[${requestId}] Error saving user message:`, userMsgError)
       // Don't fail the request if message saving fails, but log it
       // The AI response will still be returned
+    } else {
+      console.log(`[${requestId}] ✅ User message saved to DB`)
     }
 
     // Fetch user's grow logs for context
@@ -139,21 +149,18 @@ export async function POST(req: NextRequest) {
         }
       })
     }
+    console.log(`[${requestId}] 📚 Conversation history length:`, messages?.length)
 
     // Call Claude API
-    console.log('📞 Calling Anthropic API with model: claude-3-5-sonnet-20241022')
+    const conversationHistory = messages.length > 0 ? messages : [{ role: 'user' as const, content: message }]
+    console.log(`[${requestId}] 🚀 About to call Anthropic API`, { model: 'claude-3-5-sonnet-20241022', historyLength: conversationHistory.length, systemPromptLength: systemPrompt.length })
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022', // Claude 3.5 Sonnet
       max_tokens: 2048,
       system: systemPrompt,
-      messages: messages.length > 0 ? messages : [
-        {
-          role: 'user',
-          content: message
-        }
-      ]
+      messages: conversationHistory
     })
-    console.log('✅ Got response from Anthropic')
+    console.log(`[${requestId}] ✅ Anthropic response received`, { contentType: response.content[0]?.type, hasContent: !!response.content[0] })
 
     const assistantMessage = response.content[0].type === 'text' 
       ? response.content[0].text 
@@ -182,13 +189,16 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('Chat API error:', error)
-    console.log('❌ Error details:', JSON.stringify({
+    console.log(`[${requestId}] ❌ FULL ERROR:`, {
+      name: error.name,
       message: error.message,
       status: error.status,
       type: error.type,
-      name: error.name
-    }, null, 2))
+      stack: error.stack,
+      error: error.error,
+      response: error.response
+    })
+    console.error(`[${requestId}] Chat API error:`, error)
     
     // Handle Anthropic API errors
     if (error.status === 401) {
