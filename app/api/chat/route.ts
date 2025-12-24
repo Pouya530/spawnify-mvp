@@ -110,19 +110,12 @@ export async function POST(req: NextRequest) {
     console.log(`[${requestId}] ✅ User authenticated:`, user?.id)
 
     const body = await req.json()
-    const { conversationId, message, images, isNewConversation } = body
-    console.log(`[${requestId}] 📝 Message received:`, { 
-      messageLength: message?.length, 
-      hasConversationId: !!conversationId, 
-      isNewConversation,
-      hasImages: !!images,
-      imageCount: images?.length || 0
-    })
+    const { conversationId, message, isNewConversation } = body
+    console.log(`[${requestId}] 📝 Message received:`, { messageLength: message?.length, hasConversationId: !!conversationId, isNewConversation })
 
-    // Message or images required
-    if ((!message || typeof message !== 'string') && (!images || images.length === 0)) {
+    if (!message || typeof message !== 'string') {
       return NextResponse.json(
-        { error: 'Message or images are required' },
+        { error: 'Message is required' },
         { status: 400 }
       )
     }
@@ -241,27 +234,14 @@ export async function POST(req: NextRequest) {
     console.log(`[${requestId}] 📚 Conversation history length:`, messages?.length)
 
     // Build current user message with images if available
-    // Priority: 1) User-uploaded images, 2) Grow log photos
+    // Always include photos from grow logs when available - AI can use them for context
+    // This helps with tutorials, troubleshooting, and personalized advice
+    const shouldIncludeImages = recentPhotos.length > 0
+
+    // Fetch and convert images to base64 if needed
     let imageBlocks: ContentBlock[] = []
-    
-    // First, add user-uploaded images (if any)
-    if (images && Array.isArray(images) && images.length > 0) {
-      console.log(`[${requestId}] 📸 Processing ${images.length} user-uploaded image(s)...`)
-      imageBlocks = images.slice(0, 5).map((img: { base64: string; mediaType: string }) => ({
-        type: 'image' as const,
-        source: {
-          type: 'base64' as const,
-          media_type: img.mediaType || 'image/jpeg',
-          data: img.base64
-        }
-      }))
-      console.log(`[${requestId}] ✅ Added ${imageBlocks.length} user-uploaded image(s)`)
-    }
-    
-    // Then, add grow log photos if no user images and photos are available
-    const shouldIncludeGrowLogImages = imageBlocks.length === 0 && recentPhotos.length > 0
-    if (shouldIncludeGrowLogImages) {
-      console.log(`[${requestId}] 📸 Fetching ${Math.min(recentPhotos.length, 5)} grow log image(s) for Claude...`)
+    if (shouldIncludeImages && recentPhotos.length > 0) {
+      console.log(`[${requestId}] 📸 Fetching ${Math.min(recentPhotos.length, 5)} image(s) for Claude...`)
       const imagePromises = recentPhotos.slice(0, 5).map(async (photoInfo) => {
         const imageData = await fetchImageAsBase64(photoInfo.url, photoInfo.userId)
         if (imageData) {
@@ -280,32 +260,17 @@ export async function POST(req: NextRequest) {
       
       const fetchedImages = await Promise.all(imagePromises)
       imageBlocks = fetchedImages.filter((img): img is ContentBlock => img !== null)
-      console.log(`[${requestId}] ✅ Successfully fetched ${imageBlocks.length} of ${recentPhotos.slice(0, 5).length} grow log image(s)`)
+      console.log(`[${requestId}] ✅ Successfully fetched ${imageBlocks.length} of ${recentPhotos.slice(0, 5).length} image(s)`)
     }
 
-    // Build message content - include text and images
-    const messageContent: ContentBlock[] = []
-    
-    // Add text if provided
-    if (message && message.trim()) {
-      messageContent.push({ type: 'text' as const, text: message })
-    }
-    
-    // Add images if available
-    if (imageBlocks.length > 0) {
-      messageContent.push(...imageBlocks)
-    }
-    
-    // If no text and no images, add a default message
-    if (messageContent.length === 0) {
-      messageContent.push({ type: 'text' as const, text: 'Please analyze the attached images.' })
-    }
-    
     const currentUserMessage: { role: 'user'; content: string | ContentBlock[] } = {
       role: 'user',
-      content: messageContent.length === 1 && messageContent[0].type === 'text'
-        ? messageContent[0].text
-        : messageContent
+      content: imageBlocks.length > 0
+        ? [
+            { type: 'text' as const, text: message },
+            ...imageBlocks
+          ]
+        : message
     }
 
     // Call Claude API
