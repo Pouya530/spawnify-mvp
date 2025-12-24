@@ -36,3 +36,4 @@ build/
 .next/
 
 .vercel
+add-api-key.sh
