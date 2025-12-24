@@ -3,6 +3,53 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getUserGrowLogs, buildGrowLogsContext, buildSystemPrompt } from '@/lib/utils/chatContext'
 
+/**
+ * Fetch image from URL and convert to base64
+ * Handles both full URLs and filenames (constructs full URL if needed)
+ */
+async function fetchImageAsBase64(imageUrl: string, userId?: string): Promise<{ base64: string; mediaType: string } | null> {
+  try {
+    // If URL doesn't start with http/https, construct full Supabase URL
+    let fullUrl = imageUrl
+    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+      // It's just a filename or relative path, construct the full URL
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl) {
+        console.error('NEXT_PUBLIC_SUPABASE_URL not set, cannot construct image URL')
+        return null
+      }
+      
+      // If imageUrl includes /, it's already userId/filename format
+      // Otherwise, prepend userId if available
+      const path = imageUrl.includes('/') ? imageUrl : (userId ? `${userId}/${imageUrl}` : imageUrl)
+      fullUrl = `${supabaseUrl}/storage/v1/object/public/grow-photos/${path}`
+      console.log(`Constructed full URL from filename: ${imageUrl} -> ${fullUrl.substring(0, 80)}...`)
+    }
+    
+    console.log(`Fetching image from: ${fullUrl.substring(0, 100)}...`)
+    const response = await fetch(fullUrl)
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch image: ${fullUrl.substring(0, 100)}...`, response.status, response.statusText)
+      return null
+    }
+    
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const base64 = buffer.toString('base64')
+    
+    // Determine media type from Content-Type header or URL extension
+    const contentType = response.headers.get('content-type') || 'image/jpeg'
+    const mediaType = contentType.startsWith('image/') ? contentType : 'image/jpeg'
+    
+    console.log(`Successfully fetched image (${mediaType}, ${buffer.length} bytes)`)
+    return { base64, mediaType }
+  } catch (error) {
+    console.error(`Error fetching image ${imageUrl}:`, error)
+    return null
+  }
+}
+
 export async function POST(req: NextRequest) {
   const requestId = Date.now()
   // Get API key at function scope so it's available in catch block
@@ -132,6 +179,21 @@ export async function POST(req: NextRequest) {
     const growLogsContext = buildGrowLogsContext(growLogs)
     const systemPrompt = buildSystemPrompt(growLogsContext)
 
+    // Collect photo URLs from recent grow logs (for image analysis)
+    // Store both URL and userId for each photo (needed if URL is just a filename)
+    const recentPhotos: Array<{ url: string; userId: string }> = []
+    growLogs.slice(0, 5).forEach((log) => {
+      if (log.photos && Array.isArray(log.photos) && log.photos.length > 0) {
+        log.photos.forEach((photoUrl) => {
+          recentPhotos.push({ url: photoUrl, userId: log.user_id })
+        })
+      }
+    })
+    console.log(`[${requestId}] 📸 Found ${recentPhotos.length} photo(s) from grow logs`)
+    if (recentPhotos.length > 0) {
+      console.log(`[${requestId}] 📸 Sample photo URL:`, recentPhotos[0].url.substring(0, 100))
+    }
+
     // Fetch conversation history
     const { data: historyMessages } = await supabase
       .from('chat_messages')
@@ -141,11 +203,27 @@ export async function POST(req: NextRequest) {
       .limit(20) // Last 20 messages for context
 
     // Build messages array for Claude
-    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    // Claude supports content blocks: text or image (base64-encoded)
+    type ContentBlock = 
+      | { type: 'text'; text: string }
+      | { 
+          type: 'image'
+          source: { 
+            type: 'base64'
+            media_type: string
+            data: string
+          }
+        }
+    
+    const messages: Array<{ 
+      role: 'user' | 'assistant'
+      content: string | ContentBlock[]
+    }> = []
     
     if (historyMessages) {
       historyMessages.forEach((msg: { role: string; content: string }) => {
         if (msg.role === 'user' || msg.role === 'assistant') {
+          // For history, keep as simple text (images not stored in history)
           messages.push({
             role: msg.role as 'user' | 'assistant',
             content: msg.content
@@ -155,22 +233,69 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[${requestId}] 📚 Conversation history length:`, messages?.length)
 
+    // Build current user message with images if available
+    // Always include photos from grow logs when available - AI can use them for context
+    // This helps with tutorials, troubleshooting, and personalized advice
+    const shouldIncludeImages = recentPhotos.length > 0
+
+    // Fetch and convert images to base64 if needed
+    let imageBlocks: ContentBlock[] = []
+    if (shouldIncludeImages && recentPhotos.length > 0) {
+      console.log(`[${requestId}] 📸 Fetching ${Math.min(recentPhotos.length, 5)} image(s) for Claude...`)
+      const imagePromises = recentPhotos.slice(0, 5).map(async (photoInfo) => {
+        const imageData = await fetchImageAsBase64(photoInfo.url, photoInfo.userId)
+        if (imageData) {
+          return {
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: imageData.mediaType,
+              data: imageData.base64
+            }
+          } as ContentBlock
+        }
+        console.log(`[${requestId}] ⚠️ Failed to fetch image: ${photoInfo.url.substring(0, 50)}...`)
+        return null
+      })
+      
+      const fetchedImages = await Promise.all(imagePromises)
+      imageBlocks = fetchedImages.filter((img): img is ContentBlock => img !== null)
+      console.log(`[${requestId}] ✅ Successfully fetched ${imageBlocks.length} of ${recentPhotos.slice(0, 5).length} image(s)`)
+    }
+
+    const currentUserMessage: { role: 'user'; content: string | ContentBlock[] } = {
+      role: 'user',
+      content: imageBlocks.length > 0
+        ? [
+            { type: 'text' as const, text: message },
+            ...imageBlocks
+          ]
+        : message
+    }
+
     // Call Claude API
-    const conversationHistory = messages.length > 0 ? messages : [{ role: 'user' as const, content: message }]
+    const conversationHistory = messages.length > 0 
+      ? [...messages, currentUserMessage]
+      : [currentUserMessage]
+    
     // Using claude-3-haiku-20240307 (verified working model with current API key)
     const modelName = 'claude-3-haiku-20240307'
+    const hasImages = imageBlocks.length > 0
     console.log(`[${requestId}] 🚀 About to call Anthropic API`, { 
       model: modelName, 
       historyLength: conversationHistory.length, 
       systemPromptLength: systemPrompt.length,
-      apiKeyPrefix: apiKey?.substring(0, 15)
+      apiKeyPrefix: apiKey?.substring(0, 15),
+      includesImages: hasImages,
+      imageCount: imageBlocks.length,
+      imageUrls: recentPhotos.slice(0, 5)
     })
     
     const response = await anthropic.messages.create({
-      model: modelName, // Claude 3 Sonnet (verified working model)
+      model: modelName, // Claude 3 Haiku (verified working model)
       max_tokens: 2048,
       system: systemPrompt,
-      messages: conversationHistory
+      messages: conversationHistory as any // Type assertion needed for mixed content types
     })
     
     console.log(`[${requestId}] ✅ Anthropic response received`, { 
