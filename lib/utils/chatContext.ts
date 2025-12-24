@@ -54,8 +54,18 @@ export function buildGrowLogsContext(logs: GrowLog[]): string {
     }
     contextParts.push(`- Growing Method: ${log.growing_method}`)
     contextParts.push(`- Inoculation Method: ${log.inoculation_method}`)
+    if (log.inoculation_details) contextParts.push(`- Inoculation Details: ${log.inoculation_details}`)
     if (log.temperature) contextParts.push(`- Temperature: ${log.temperature}°F`)
     if (log.humidity) contextParts.push(`- Humidity: ${log.humidity}%`)
+    if (log.ph_level) contextParts.push(`- pH Level: ${log.ph_level}`)
+    if (log.weight) contextParts.push(`- Weight: ${log.weight}g`)
+    if (log.light_hours_daily) contextParts.push(`- Light Hours: ${log.light_hours_daily}h/day`)
+    if (log.tek_method) contextParts.push(`- TEK Method: ${log.tek_method}`)
+    if (log.tek_notes) contextParts.push(`- TEK Notes: ${log.tek_notes}`)
+    if (log.notes) contextParts.push(`- Notes: ${log.notes}`)
+    if (log.photos && Array.isArray(log.photos) && log.photos.length > 0) {
+      contextParts.push(`- Photos: ${log.photos.length} image(s) available`)
+    }
     if (log.data_completeness_score) contextParts.push(`- Completeness: ${log.data_completeness_score}%`)
   })
   
@@ -77,14 +87,23 @@ export function buildSystemPrompt(growLogsContext: string): string {
 **User's Grow Log Context:**
 ${growLogsContext}
 
+**IMPORTANT - Use Grow Log Data:**
+- ALWAYS reference the user's specific grow log data when providing advice
+- Use their strain, growth stage, substrate, and environmental conditions to give personalized recommendations
+- Reference their TEK method and notes when relevant
+- Compare their current conditions to optimal conditions for their specific setup
+- If they have multiple logs, identify patterns and trends
+- When troubleshooting, use their actual data (temperature, humidity, pH, etc.) to diagnose issues
+
 **Guidelines:**
 - Be friendly, encouraging, and educational
-- Reference specific grow log data when relevant
-- Provide actionable, step-by-step advice
+- Reference specific grow log data when relevant (e.g., "Based on your log showing [strain] at [stage]...")
+- Provide actionable, step-by-step advice tailored to their setup
 - Use UK legal mushroom varieties only (culinary/medicinal)
 - If asked about illegal substances, politely redirect to legal alternatives
 - Format responses clearly with bullet points or numbered steps when appropriate
 - Ask clarifying questions if you need more information about their grow setup
+- When referencing their logs, be specific: mention strain names, dates, and conditions
 
 **Current Date:** ${new Date().toISOString().split('T')[0]}
 
