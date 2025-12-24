@@ -66,8 +66,8 @@ export function ChatInterface({ initialConversations = [] }: ChatInterfaceProps)
     }
   }
 
-  const handleSendMessage = async (message: string) => {
-    if (!message.trim()) return
+  const handleSendMessage = async (message: string, images?: File[]) => {
+    if (!message.trim() && (!images || images.length === 0)) return
 
     setLoading(true)
     setError(null)
@@ -77,7 +77,7 @@ export function ChatInterface({ initialConversations = [] }: ChatInterfaceProps)
       id: `temp-${Date.now()}`,
       conversation_id: selectedConversationId || '',
       role: 'user',
-      content: message,
+      content: message || (images && images.length > 0 ? `[${images.length} image(s) attached]` : ''),
       metadata: {},
       created_at: new Date().toISOString()
     }
@@ -85,6 +85,21 @@ export function ChatInterface({ initialConversations = [] }: ChatInterfaceProps)
     setMessages(prev => [...prev, userMessage])
 
     try {
+      // Convert images to base64 if provided
+      const imageDataPromises = images?.map(async (file) => {
+        return new Promise<{ base64: string; mediaType: string }>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1] // Remove data:image/...;base64, prefix
+            resolve({ base64, mediaType: file.type })
+          }
+          reader.onerror = reject
+          reader.readAsDataURL(file)
+        })
+      }) || []
+
+      const imageData = await Promise.all(imageDataPromises)
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -92,7 +107,8 @@ export function ChatInterface({ initialConversations = [] }: ChatInterfaceProps)
         },
         body: JSON.stringify({
           conversationId: selectedConversationId,
-          message,
+          message: message || '',
+          images: imageData.length > 0 ? imageData : undefined,
           isNewConversation: !selectedConversationId
         })
       })
