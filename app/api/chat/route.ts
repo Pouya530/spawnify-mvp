@@ -234,9 +234,26 @@ export async function POST(req: NextRequest) {
     console.log(`[${requestId}] 📚 Conversation history length:`, messages?.length)
 
     // Build current user message with images if available
-    // Always include photos from grow logs when available - AI can use them for context
-    // This helps with tutorials, troubleshooting, and personalized advice
-    const shouldIncludeImages = recentPhotos.length > 0
+    // Only include photos from grow logs when user asks about them or troubleshooting
+    // This prevents images from being included for simple greetings like "hello"
+    const shouldIncludeImages = recentPhotos.length > 0 && (
+      message.toLowerCase().includes('photo') ||
+      message.toLowerCase().includes('image') ||
+      message.toLowerCase().includes('picture') ||
+      message.toLowerCase().includes('troubleshoot') ||
+      message.toLowerCase().includes('problem') ||
+      message.toLowerCase().includes('issue') ||
+      message.toLowerCase().includes('help') ||
+      message.toLowerCase().includes('what') ||
+      message.toLowerCase().includes('why') ||
+      message.toLowerCase().includes('how') ||
+      message.toLowerCase().includes('diagnose') ||
+      message.toLowerCase().includes('analyze') ||
+      message.toLowerCase().includes('check') ||
+      message.toLowerCase().includes('see') ||
+      message.toLowerCase().includes('look') ||
+      messages.length === 0 // First message in conversation
+    )
 
     // Fetch and convert images to base64 if needed
     let imageBlocks: ContentBlock[] = []
