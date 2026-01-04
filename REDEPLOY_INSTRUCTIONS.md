@@ -63,3 +63,4 @@ After redeployment, verify:
 2. Debug endpoint shows key exists
 3. Chat works without errors
 
+

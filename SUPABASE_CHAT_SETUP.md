@@ -130,3 +130,4 @@ CREATE TRIGGER update_conversation_timestamp
 
 Test at: https://spawnify-mvp-gyf2.vercel.app/dashboard/chat
 
+

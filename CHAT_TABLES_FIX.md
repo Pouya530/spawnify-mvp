@@ -196,3 +196,4 @@ Once tables are created:
 
 Test it: https://spawnify-mvp-gyf2.vercel.app/dashboard/chat
 
+

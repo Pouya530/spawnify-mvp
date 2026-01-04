@@ -105,3 +105,4 @@ CREATE TRIGGER update_conversation_timestamp
 -- AND table_name IN ('chat_conversations', 'chat_messages');
 -- ============================================================================
 
+
