@@ -57,3 +57,4 @@ echo "1. Redeploy: vercel --prod"
 echo "2. Wait 2-3 minutes"
 echo "3. Test: https://spawnify-mvp-gyf2.vercel.app/api/test-env"
 
+

@@ -101,3 +101,4 @@ CREATE TRIGGER update_conversation_timestamp
   FOR EACH ROW
   EXECUTE FUNCTION update_chat_conversation_updated_at();
 
+

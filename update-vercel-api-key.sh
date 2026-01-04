@@ -57,3 +57,4 @@ echo ""
 echo "✅ Done! Wait 2-3 minutes, then test:"
 echo "   https://spawnify-mvp-gyf2.vercel.app/dashboard/chat"
 
+

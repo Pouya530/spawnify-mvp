@@ -12,3 +12,4 @@ vercel env pull .env.vercel.check
 cat .env.vercel.check | grep ANTHROPIC
 rm .env.vercel.check
 
+

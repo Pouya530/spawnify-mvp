@@ -55,3 +55,4 @@ All secrets are managed via environment variables:
 4. **Generate new secret** and update all environments
 5. **Notify team members** to pull latest changes
 
+
